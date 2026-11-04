@@ -1,0 +1,120 @@
+{
+  "iteration": 1,
+  "mode": "generate",
+  "passed": 14,
+  "failed": 0,
+  "bugs": [],
+  "action_items": [
+    {
+      "type": "note",
+      "severity": "low",
+      "detail": "httpx's stdlib cookiejar refuses to replay the backend's Secure session cookie over plain http://localhost:8001 (correct behavior for the real HTTPS ingress users hit). Worked around in tests/conftest.py's shared `login()` helper by pinning the token into a manual Cookie header instead of relying on the jar. Not an app bug — flagging so it's understood if new backend tests are added without using the helper."
+    },
+    {
+      "type": "note",
+      "severity": "low",
+      "detail": "wa.me links 302-redirect to api.whatsapp.com/send?text=... in a real browser; the whatsapp-escala-share check accepts either host as the legitimate share target."
+    }
+  ],
+  "retest_needed": false,
+  "checks": [
+    {
+      "criterion": "Member can belong to multiple sectors",
+      "name": "test_tscheck_multi_sector_member.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "PUT /api/members/{id} with 2 sector_ids -> 200, sector_ids == [s1,s2]; GET /api/members?status=active row sector_ids matches. tscheck member deleted at teardown."
+    },
+    {
+      "criterion": "Member can belong to multiple sectors",
+      "name": "members-multi-sector-badges",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Created tscheck-ms-<ts> member via UI, ticked 1 then 2 sectors across create+edit; row shows exactly 2 member-sector-{id}-{sectorId} badges; GET /api/members?status=active confirms 2 sector_ids. Member deleted at end. Also re-ran once against the public preview URL (https://pastoral-agenda-1--43ri4j9v.preview.emergentagent.com) — passed."
+    },
+    {
+      "criterion": "Leaders see who goes / who doesn't / who didn't answer",
+      "name": "test_tscheck_escala_visibility.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "On a tscheck future event with open escala: joao (membro) GET /api/events sees pending==[] and declined==[] and all helper/declined phones are null; after joao clears his RSVP, admin (leader) GET /api/events shows pending length >= 1. Event deleted at teardown."
+    },
+    {
+      "criterion": "Leaders see who goes / who doesn't / who didn't answer",
+      "name": "escala-leader-vs-member-visibility",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "On seeded 'Missa da Comunidade' (read-only, no data mutated): admin view expands to show event-group-going/declined/pending with texts 'Vão ajudar'/'Não vão'/'Não responderam'; joao (membro) view has 0 count for event-group-declined/pending testids. API cross-check: joao's GET /api/events?scope=upcoming shows pending=[], declined=[], helper phones=null for that event."
+    },
+    {
+      "criterion": "Leaders mark real attendance after the event",
+      "name": "test_tscheck_attendance_permissions.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "PUT /api/events/{future_id}/attendance -> 400 (even for coordinator); PUT on a past tscheck event -> 200 for coordinator; same past event PUT by joao (membro) -> 403. Both tscheck events deleted at teardown."
+    },
+    {
+      "criterion": "Leaders mark real attendance after the event",
+      "name": "attendance-marking-dialog",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Seeded past event 'Missa de Abertura do Ano Pastoral' (read-only): attendance badge shows 'N presente(s)'; 'Marcar presença' button visible for admin and sub, opens attendance-dialog with attendance-row-* checkboxes for eligible members; dialog closed via Cancel without saving so no seeded attendance was modified."
+    },
+    {
+      "criterion": "Last time each member served + participation count",
+      "name": "test_tscheck_served_stats.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "Created tscheck member + past tscheck event; PUT attendance marks member present -> GET /api/members row shows served_count=1, last_served=<event date>; GET /api/members/{id}/history includes the event; a separate RSVP-only event (no attendance) does NOT bump served_count, confirming 'served' counts only confirmed attendance. Member and both events deleted at teardown."
+    },
+    {
+      "criterion": "Last time each member served + participation count",
+      "name": "served-count-history-display",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "joao's row on /membros shows 'Serviu Nx · última em dd/mm/aaaa' (view-only, no data created/mutated); clicking it opens the member history dialog; 'Quem menos serviu' sort option selectable and reorders the list."
+    },
+    {
+      "criterion": "Last app access per member",
+      "name": "last-access-display",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "After logging in as joao then viewing /membros as admin, joao's row shows 'Acessou ...' (not 'Nunca acessou'); GET /api/members?status=active confirms last_seen_at is within the last 5 minutes."
+    },
+    {
+      "criterion": "WhatsApp escala message",
+      "name": "whatsapp-escala-share",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "On seeded 'Missa da Comunidade' (read-only): WhatsApp button visible to admin, click opens a wa.me/api.whatsapp.com popup whose text param contains the event title 'Missa da Comunidade' and function names (Leitura/Acolhida/Canto); joao (membro) view has 0 count for the whatsapp-share-btn testid on the same event."
+    },
+    {
+      "criterion": "Functions with slots in escala",
+      "name": "test_tscheck_functions_slots.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "Created tscheck event with role 'Leitura' slots=1. joao POST rsvp going without role_id -> 400; with role_id -> 200, roles[0].taken=1; ana POST rsvp going same role_id -> 409 (slot full). joao's rsvp cleared and event deleted at teardown."
+    },
+    {
+      "criterion": "Functions with slots in escala",
+      "name": "event-functions-rsvp-flow",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Coordinator created tscheck event with suggested function 'Leitura' (1 slot) via the event form; joao (membro) 'Vou ajudar' opened a role menu, picked Leitura; button then read 'Vou ajudar · Leitura ✓' and the role counter showed 1/1. joao's RSVP cleared and the tscheck event deleted by admin at the end."
+    },
+    {
+      "criterion": "Monthly calendar view",
+      "name": "test_tscheck_calendar_month.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "GET /api/events?month=YYYY-MM (far-future month) includes a freshly created tscheck event and excludes it when querying a different month; event deleted at teardown."
+    },
+    {
+      "criterion": "Monthly calendar view",
+      "name": "agenda-calendar-month-view",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Agenda 'Calendário' toggle shows month-calendar grid; next/prev month buttons change then restore calendar-month-title; clicking the day cell containing the seeded 'Missa da Comunidade' filters the card list below to that day and shows a 'Ver o mês inteiro' clear control."
+    }
+  ]
+}
